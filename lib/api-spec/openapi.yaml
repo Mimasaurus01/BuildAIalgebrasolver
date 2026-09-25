@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: solver
+    description: Algebra solving operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /solve:
+    post:
+      operationId: solveAlgebra
+      tags: [solver]
+      summary: Solve an algebra equation
+      description: Solves a typed equation or OCRs an uploaded equation image with Mathpix before solving it with SymPy.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SolveInput"
+      responses:
+        "200":
+          description: Solved algebra result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SolveResult"
+        "400":
+          description: Invalid input or equation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Solver or OCR service error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +66,69 @@ components:
           type: string
       required:
         - status
+    SolveInput:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [text, image]
+        equation:
+          type: ["string", "null"]
+          minLength: 1
+        imageBase64:
+          type: ["string", "null"]
+          description: Base64-encoded image bytes without a data URL prefix.
+        mimeType:
+          type: ["string", "null"]
+          description: MIME type of the uploaded image.
+      required:
+        - mode
+    SolveStep:
+      type: object
+      properties:
+        label:
+          type: string
+        expression:
+          type: string
+        detail:
+          type: string
+      required:
+        - label
+        - expression
+        - detail
+    SolveResult:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [text, image]
+        rawText:
+          type: string
+        latex:
+          type: string
+        equation:
+          type: string
+        variable:
+          type: string
+        solution:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/SolveStep"
+      required:
+        - mode
+        - rawText
+        - latex
+        - equation
+        - variable
+        - solution
+        - steps
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 

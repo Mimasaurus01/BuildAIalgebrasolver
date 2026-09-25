@@ -1,0 +1,9 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "antlr4-python3-runtime>=4.13.2",
+    "sympy>=1.14.0",
+]

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Algebra Solver"
+description = "A browser-based algebra solver that converts photographed equations to LaTeX with Mathpix, solves them with SymPy, and presents the answer with clear intermediate steps."
+version = "1.0.0"
+id = "artifacts/algebra-solver"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21877
+
+[services.development]
+run = "pnpm --filter @workspace/algebra-solver run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/algebra-solver", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/algebra-solver/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21877"
+BASE_PATH = "/"
