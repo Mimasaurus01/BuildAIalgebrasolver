@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Solve algebra equations from typed text or a photo and see the working."
+    />
+    <title>solve / it — Algebra Workbench</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">
+        <span class="brand-mark">x<span></span></span>
+        <span>
+          <strong>solve / it</strong>
+          <small>algebra workbench</small>
+        </span>
+      </a>
+      <div class="engine-status" id="engine-status">
+        <span class="status-dot"></span>
+        <span>checking engine</span>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section class="hero">
+        <span class="eyebrow">A clearer way through algebra</span>
+        <h1>Don’t just get<br /><span>the answer.</span></h1>
+        <p>
+          Put in an equation. Get back the reasoning. A focused solver for the
+          moments when one missing step makes everything feel harder.
+        </p>
+      </section>
+
+      <section class="workbench">
+        <div class="input-column">
+          <div class="panel input-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Start with your equation</h2>
+                <p>Text is fastest. A photo works too.</p>
+              </div>
+              <span class="panel-label">INPUT</span>
+            </div>
+
+            <div class="mode-tabs" role="tablist" aria-label="Equation input mode">
+              <button class="mode-tab active" id="text-tab" role="tab" aria-selected="true">
+                <span aria-hidden="true">∑</span> Type it
+              </button>
+              <button class="mode-tab" id="image-tab" role="tab" aria-selected="false">
+                <span aria-hidden="true">▧</span> Upload a photo
+              </button>
+            </div>
+
+            <form id="text-form" class="equation-form">
+              <label class="sr-only" for="equation">Type an equation</label>
+              <textarea
+                id="equation"
+                placeholder="Type an equation to solve..."
+                autocomplete="off"
+                spellcheck="false"
+              ></textarea>
+              <div class="input-hint"><span>∑</span> Use = to set both sides equal</div>
+              <button class="primary-button submit-button" type="submit">
+                <span class="button-icon">✦</span> Solve
+              </button>
+            </form>
+
+            <div id="image-form" class="image-form hidden">
+              <input id="image-file" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+              <div id="dropzone" class="dropzone">
+                <button class="dropzone-empty" id="choose-image" type="button">
+                  <span class="upload-icon">＋</span>
+                  <strong>Drop a photo of your equation</strong>
+                  <span>or click to browse · PNG, JPG, WEBP</span>
+                  <em>↥ Choose image</em>
+                </button>
+              </div>
+              <button class="primary-button image-solve-button hidden" id="solve-image" type="button">
+                <span class="button-icon">✦</span> Solve image
+              </button>
+            </div>
+
+            <div class="examples">
+              <div class="examples-heading"><span>Try an example</span><i></i></div>
+              <div class="example-list">
+                <button class="example-button" data-equation="3x + 7 = 22">
+                  <small>Linear</small> 3x + 7 = 22
+                </button>
+                <button class="example-button" data-equation="x^2 - 5x + 6 = 0">
+                  <small>Quadratic</small> x² - 5x + 6 = 0
+                </button>
+                <button class="example-button" data-equation="2(x - 3) = x + 9">
+                  <small>Fractions</small> 2(x - 3) = x + 9
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="workflow-note">
+            <div>
+              <span>01</span>
+              <strong>Read</strong>
+              <p>Mathpix reads a photo when handwriting gets in the way.</p>
+            </div>
+            <div>
+              <span>02</span>
+              <strong>Solve</strong>
+              <p>SymPy applies the algebra rules and finds the variable.</p>
+            </div>
+            <div>
+              <span>03</span>
+              <strong>Understand</strong>
+              <p>Every result comes with a short, useful trail of steps.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-column">
+          <div class="result-heading">
+            <span><b>02</b> Your working</span>
+            <button id="clear-result" class="text-button hidden" type="button">↻ Clear</button>
+          </div>
+          <div id="result-area" class="result-area empty-result">
+            <div class="empty-art">x?</div>
+            <h2>Your answer will land here</h2>
+            <p>
+              Enter an equation or upload a photo. We will show every meaningful
+              move, not just the final number.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <span>Built for curious minds who want the why.</span>
+        <span>Mathpix · SymPy · solve / it</span>
+      </footer>
+    </main>
+
+    <script>
+      const state = {
+        mode: "text",
+        imageBase64: null,
+        imagePreview: null,
+        mimeType: null,
+        fileName: null,
+      };
+
+      const textTab = document.querySelector("#text-tab");
+      const imageTab = document.querySelector("#image-tab");
+      const textForm = document.querySelector("#text-form");
+      const imageForm = document.querySelector("#image-form");
+      const equationInput = document.querySelector("#equation");
+      const imageFile = document.querySelector("#image-file");
+      const dropzone = document.querySelector("#dropzone");
+      const resultArea = document.querySelector("#result-area");
+      const clearResult = document.querySelector("#clear-result");
+      const engineStatus = document.querySelector("#engine-status");
+
+      function setMode(mode) {
+        state.mode = mode;
+        const textActive = mode === "text";
+        textTab.classList.toggle("active", textActive);
+        imageTab.classList.toggle("active", !textActive);
+        textTab.setAttribute("aria-selected", String(textActive));
+        imageTab.setAttribute("aria-selected", String(!textActive));
+        textForm.classList.toggle("hidden", !textActive);
+        imageForm.classList.toggle("hidden", textActive);
+      }
+
+      function setResultMarkup(markup, className) {
+        resultArea.className = `result-area ${className}`;
+        resultArea.innerHTML = markup;
+      }
+
+      function showLoading() {
+        setResultMarkup(
+          `<div class="loading-mark"><span></span></div>
+           <h2>Working it out</h2>
+           <p>Parsing the equation, isolating the variable, and checking the result.</p>
+           <div class="loading-list">
+             <div>✓ <span>Reading your equation</span></div>
+             <div>○ <span>Applying algebra rules</span></div>
+             <div>○ <span>Checking the answer</span></div>
+           </div>`,
+          "loading-result",
+        );
+        clearResult.classList.add("hidden");
+      }
+
+      function showError(message) {
+        setResultMarkup(
+          `<div class="error-mark">×</div>
+           <h2>That one did not parse</h2>
+           <p>${escapeHtml(message)}</p>
+           <button class="secondary-button" id="try-again" type="button">↻ Try again</button>`,
+          "error-result",
+        );
+        document.querySelector("#try-again").addEventListener("click", clear);
+      }
+
+      function showResult(result) {
+        const steps = result.steps
+          .map(
+            (step, index) => `
+              <div class="step">
+                <div class="step-number">${index + 1}</div>
+                <div>
+                  <strong>${escapeHtml(step.label)}</strong>
+                  <code>${escapeHtml(step.expression)}</code>
+                  <p>${escapeHtml(step.detail)}</p>
+                </div>
+              </div>`,
+          )
+          .join("");
+
+        setResultMarkup(
+          `<div class="answer-card">
+             <div class="answer-card-header">
+               <span>✓ &nbsp;SOLVED</span>
+               <button id="copy-answer" class="copy-button" type="button">▣ Copy</button>
+             </div>
+             <div class="answer-card-body">
+               <small>EQUATION</small>
+               <code>${escapeHtml(result.equation)}</code>
+               <hr />
+               <small>ANSWER</small>
+               <div class="answer">${escapeHtml(result.solution)}</div>
+               <span class="answer-variable">${escapeHtml(result.variable)} = solution</span>
+             </div>
+           </div>
+           <div class="steps-card">
+             <div class="steps-heading">
+               <div><h2>The working</h2><p>Follow the same path you would take on paper.</p></div>
+               <span>${result.steps.length} steps</span>
+             </div>
+             <div class="steps-list">${steps}</div>
+           </div>
+           <button id="new-solve" class="secondary-button full-button" type="button">✦ Solve another equation</button>`,
+          "success-result",
+        );
+        clearResult.classList.remove("hidden");
+        document.querySelector("#copy-answer").addEventListener("click", async (event) => {
+          await navigator.clipboard?.writeText(`${result.equation}\n${result.solution}`);
+          event.currentTarget.textContent = "✓ Copied";
+        });
+        document.querySelector("#new-solve").addEventListener("click", clear);
+      }
+
+      async function solve(payload) {
+        showLoading();
+        try {
+          const response = await fetch("/api/solve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Unable to solve that equation.");
+          showResult(data);
+        } catch (error) {
+          showError(error.message || "Unable to solve that equation.");
+        }
+      }
+
+      function clear() {
+        resultArea.className = "result-area empty-result";
+        resultArea.innerHTML =
+          '<div class="empty-art">x?</div><h2>Your answer will land here</h2><p>Enter an equation or upload a photo. We will show every meaningful move, not just the final number.</p>';
+        clearResult.classList.add("hidden");
+      }
+
+      function handleFile(file) {
+        if (!file || !file.type.startsWith("image/")) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          state.imagePreview = String(reader.result);
+          state.imageBase64 = state.imagePreview.split(",")[1];
+          state.mimeType = file.type;
+          state.fileName = file.name;
+          dropzone.innerHTML = `
+            <div class="image-preview">
+              <button id="remove-image" type="button" aria-label="Remove image">×</button>
+              <img src="${state.imagePreview}" alt="Uploaded equation preview" />
+              <strong>${escapeHtml(file.name)}</strong>
+              <button id="change-image" class="secondary-button" type="button">Change image</button>
+            </div>`;
+          document.querySelector("#remove-image").addEventListener("click", clearImage);
+          document.querySelector("#change-image").addEventListener("click", () => imageFile.click());
+          document.querySelector("#solve-image").classList.remove("hidden");
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function clearImage() {
+        state.imageBase64 = null;
+        state.imagePreview = null;
+        state.fileName = null;
+        state.mimeType = null;
+        imageFile.value = "";
+        dropzone.innerHTML = `
+          <button class="dropzone-empty" id="choose-image" type="button">
+            <span class="upload-icon">＋</span>
+            <strong>Drop a photo of your equation</strong>
+            <span>or click to browse · PNG, JPG, WEBP</span>
+            <em>↥ Choose image</em>
+          </button>`;
+        document.querySelector("#choose-image").addEventListener("click", () => imageFile.click());
+        document.querySelector("#solve-image").classList.add("hidden");
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (character) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
+        }[character]));
+      }
+
+      textTab.addEventListener("click", () => setMode("text"));
+      imageTab.addEventListener("click", () => setMode("image"));
+      textForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const equation = equationInput.value.trim();
+        if (equation) solve({ mode: "text", equation, imageBase64: null, mimeType: null });
+      });
+      imageFile.addEventListener("change", (event) => handleFile(event.target.files[0]));
+      document.querySelector("#choose-image").addEventListener("click", () => imageFile.click());
+      document.querySelector("#solve-image").addEventListener("click", () => {
+        if (state.imageBase64) {
+          solve({ mode: "image", equation: null, imageBase64: state.imageBase64, mimeType: state.mimeType });
+        }
+      });
+      document.querySelector("#clear-result").addEventListener("click", clear);
+      document.querySelectorAll(".example-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          setMode("text");
+          equationInput.value = button.dataset.equation;
+          equationInput.focus();
+        });
+      });
+      dropzone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        dropzone.classList.add("dragging");
+      });
+      dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragging"));
+      dropzone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        dropzone.classList.remove("dragging");
+        handleFile(event.dataTransfer.files[0]);
+      });
+
+      fetch("/api/health")
+        .then((response) => {
+          if (!response.ok) throw new Error();
+          engineStatus.innerHTML = '<span class="status-dot online"></span><span>solver online</span>';
+        })
+        .catch(() => {
+          engineStatus.innerHTML = '<span class="status-dot offline"></span><span>solver unavailable</span>';
+        });
+    </script>
+  </body>
+</html>
